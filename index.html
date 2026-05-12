@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мульти-кубики</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: #fff;
+      text-align: center;
+      padding: 30px 20px;
+      margin: 0;
+      min-height: 100vh;
+      position: relative;
+    }
+    h1 { margin: 10px 0 5px; }
+
+    .dice-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 35px;
+      background: rgba(255,255,255,0.05);
+      padding: 20px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .dice-btn {
+      padding: 14px 24px;
+      font-size: 19px;
+      font-weight: 600;
+      background: #2a2a4a;
+      color: #ddd;
+      border: 2px solid transparent;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-width: 70px;
+    }
+    .dice-btn:hover {
+      background: #3a3a5a;
+      transform: translateY(-3px);
+    }
+    .dice-btn.active {
+      background: #e63939;
+      color: white;
+      border: 2px solid #ff8a65;
+      transform: scale(1.12);
+      box-shadow: 0 0 20px rgba(230, 57, 57, 0.6);
+    }
+
+    .dice-container {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 40px auto;
+    }
+
+    .dice {
+      width: 200px;
+      height: 200px;
+      background: linear-gradient(145deg, #e63939, #c11212);
+      color: white;
+      font-size: 90px;
+      font-weight: bold;
+      border-radius: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 20px 40px rgba(230, 57, 57, 0.7);
+    }
+
+    @keyframes rollAnimation {
+      0%   { transform: translateY(-100px) rotate(0deg) scale(0.8); }
+      30%  { transform: translateY(20px) rotate(180deg) scale(1.1); }
+      50%  { transform: translateY(-40px) rotate(360deg) scale(0.95); }
+      70%  { transform: translateY(10px) rotate(540deg) scale(1.05); }
+      85%  { transform: translateY(-15px) rotate(720deg) scale(1); }
+      100% { transform: translateY(0) rotate(720deg) scale(1); }
+    }
+
+    .rolling {
+      animation: rollAnimation 1.2s ease-out forwards;
+    }
+
+    button {
+      padding: 14px 36px;
+      font-size: 22px;
+      background: #00b4d8;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover { background: #0096c7; transform: scale(1.05); }
+
+    .info {
+      margin: 20px 0;
+      font-size: 18px;
+    }
+
+    /* Уведомление */
+    #toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 500;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transition: all 0.4s ease;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-20px);
+    }
+
+    .history {
+      margin-top: 40px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .log {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 12px;
+      justify-content: center;
+      padding: 10px;
+    }
+    .log span {
+      background: #25253a;
+      padding: 12px 10px;
+      border-radius: 12px;
+      font-size: 20px;
+      font-weight: 500;
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .high { color: #00ff88; }
+    .max { 
+      color: #ff9f1c; 
+      font-weight: 700;
+      background: #3a2a1f !important;
+      box-shadow: 0 0 12px #ff9f1c;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎲 Мульти-кубики</h1>
+
+  <div class="dice-selector" id="selector"></div>
+
+  <div class="dice-container">
+    <div class="dice" id="dice">20</div>
+  </div>
+
+  <div class="info">
+    <strong>Выбранный кубик: <span id="currentDie">D20</span></strong>
+  </div>
+
+  <button onclick="rollDice()">БРОСИТЬ КУБИК</button>
+  <button onclick="clearHistory()">Очистить историю</button>
+
+  <div class="history">
+    <h2>История бросков</h2>
+    <div class="log" id="history"></div>
+  </div>
+
+  <!-- Уведомление -->
+  <div id="toast"></div>
+
+  <script>
+    const diceTypes = [
+      { name: "D4",   sides: 4,   biased: false },
+      { name: "D6",   sides: 6,   biased: false },
+      { name: "D8",   sides: 8,   biased: true },
+      { name: "D10",  sides: 10,  biased: true },
+      { name: "D12",  sides: 12,  biased: true },
+      { name: "D20",  sides: 20,  biased: true },
+      { name: "D100", sides: 100, biased: false }
+    ];
+
+    let currentDie = diceTypes[5];
+    let history = [];
+    let isRolling = false;
+    let fairMode = true;   // По умолчанию — честный режим
+
+    function createDiceButtons() {
+      const container = document.getElementById('selector');
+      container.innerHTML = '';
+      
+      diceTypes.forEach(die => {
+        const btn = document.createElement('button');
+        btn.className = 'dice-btn';
+        btn.textContent = die.name;
+        if (die.name === currentDie.name) btn.classList.add('active');
+        
+        btn.onclick = () => {
+          currentDie = die;
+          document.getElementById('currentDie').textContent = die.name;
+          
+          document.querySelectorAll('.dice-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          
+          document.getElementById('dice').textContent = die.sides;
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2500);
+    }
+
+    async function rollDice() {
+      if (isRolling) return;
+      isRolling = true;
+
+      const diceEl = document.getElementById('dice');
+      diceEl.classList.add('rolling');
+
+      const rollInterval = setInterval(() => {
+        const fake = Math.floor(Math.random() * currentDie.sides) + 1;
+        diceEl.textContent = fake;
+      }, 80);
+
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      clearInterval(rollInterval);
+
+      let result;
+
+      if (!fairMode && currentDie.biased) {
+        const probs = new Array(currentDie.sides).fill(0);
+        if (currentDie.name === "D20") {
+          for (let i = 0; i < 10; i++) probs[i] = 0.02;
+          for (let i = 10; i < 15; i++) probs[i] = 0.04;
+          for (let i = 15; i < 20; i++) probs[i] = 0.12;
+        } else if (currentDie.name === "D12") {
+          for (let i = 0; i < 6; i++) probs[i] = 0.05;
+          for (let i = 6; i < 12; i++) probs[i] = 0.1167;
+        } else if (currentDie.name === "D10") {
+          for (let i = 0; i < 5; i++) probs[i] = 0.07;
+          for (let i = 5; i < 10; i++) probs[i] = 0.13;
+        } else if (currentDie.name === "D8") {
+          for (let i = 0; i < 4; i++) probs[i] = 0.0875;
+          for (let i = 4; i < 8; i++) probs[i] = 0.1625;
+        }
+
+        let roll = Math.random();
+        let sum = 0;
+        for (let i = 0; i < currentDie.sides; i++) {
+          sum += probs[i];
+          if (roll <= sum) {
+            result = i + 1;
+            break;
+          }
+        }
+      } else {
+        result = Math.floor(Math.random() * currentDie.sides) + 1;
+      }
+
+      diceEl.textContent = result;
+      diceEl.classList.remove('rolling');
+
+      history.unshift({ die: currentDie.name, value: result });
+      if (history.length > 100) history.pop();
+
+      renderHistory();
+      isRolling = false;
+    }
+
+    function renderHistory() {
+      const historyEl = document.getElementById('history');
+      historyEl.innerHTML = history.map(item => {
+        const maxValue = item.die === "D100" ? 100 : parseInt(item.die.substring(1));
+        const isMax = item.value === maxValue;
+        const isHigh = (item.die === "D20" && item.value >= 16) ||
+                       (item.die === "D12" && item.value >= 9) ||
+                       (item.die === "D10" && item.value >= 7) ||
+                       (item.die === "D8"  && item.value >= 6);
+
+        let className = '';
+        if (isMax) className = 'max';
+        else if (isHigh) className = 'high';
+
+        return `<span class="${className}">${item.die} — ${item.value}</span>`;
+      }).join('');
+    }
+
+    function clearHistory() {
+      history = [];
+      renderHistory();
+    }
+
+    // Переключение режима по клавише \
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '\\') {
+        fairMode = !fairMode;
+        if (fairMode) {
+          showToast("✅ Режим: Честный");
+        } else {
+          showToast("🔥 Режим: Смещённый");
+        }
+      }
+    });
+
+    window.onload = () => {
+      createDiceButtons();
+      rollDice();
+    };
+  </script>
+</body>
+</html>
