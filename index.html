@@ -250,12 +250,12 @@
 
       let result;
 
-      if (!fairMode && currentDie.biased) {
+     if (!fairMode && currentDie.biased) {
         const probs = new Array(currentDie.sides).fill(0);
         if (currentDie.name === "D20") {
-          for (let i = 0; i < 10; i++) probs[i] = 0.02;
-          for (let i = 10; i < 15; i++) probs[i] = 0.04;
-          for (let i = 15; i < 20; i++) probs[i] = 0.12;
+          for (let i = 0; i < 10; i++) probs[i] = 0.01;
+          for (let i = 10; i < 15; i++) probs[i] = 0.02;
+          for (let i = 15; i < 20; i++) probs[i] = 0.16;
         } else if (currentDie.name === "D12") {
           for (let i = 0; i < 6; i++) probs[i] = 0.05;
           for (let i = 6; i < 12; i++) probs[i] = 0.1167;
